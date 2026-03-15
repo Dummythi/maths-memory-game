@@ -19,25 +19,9 @@ let flippedCards = [];
 let lockBoard = false;
 let matchedPairs = 0;
 
-function preloadImages() {
-  const sources = [CARD_BACK];
-  for (const letter of CARD_LETTERS) {
-    sources.push(`./cards/${letter}1.png`);
-    sources.push(`./cards/${letter}2.png`);
-  }
-
-  return Promise.all(
-    sources.map(src => new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(src);
-      img.onerror = () => reject(new Error(`Failed to load ${src}`));
-      img.src = src;
-    }))
-  );
-}
-
 function buildDeck() {
   const cards = [];
+
   for (const letter of CARD_LETTERS) {
     cards.push({
       id: `${letter}1`,
@@ -45,6 +29,7 @@ function buildDeck() {
       frontImage: `./cards/${letter}1.png`,
       alt: `כרטיס ${letter}1`
     });
+
     cards.push({
       id: `${letter}2`,
       pairId: letter,
@@ -52,6 +37,7 @@ function buildDeck() {
       alt: `כרטיס ${letter}2`
     });
   }
+
   return shuffle(cards);
 }
 
@@ -167,24 +153,10 @@ function onCardClick(card) {
   }
 }
 
-async function startGame() {
-  startBtn.disabled = true;
-  restartBtn.disabled = true;
-  playAgainBtn.disabled = true;
-
-  try {
-    await preloadImages();
-    resetState();
-    renderBoard();
-    showScreen(gameScreen);
-  } catch (error) {
-    console.error(error);
-    alert('יש בעיה בטעינת התמונות. בדקי שכל הקבצים נמצאים בתוך cards.');
-  } finally {
-    startBtn.disabled = false;
-    restartBtn.disabled = false;
-    playAgainBtn.disabled = false;
-  }
+function startGame() {
+  resetState();
+  renderBoard();
+  showScreen(gameScreen);
 }
 
 startBtn.addEventListener('click', startGame);
