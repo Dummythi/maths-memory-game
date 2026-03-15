@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>משחק הזיכרון!</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <section id="start-screen" class="screen active" aria-label="מסך פתיחה">
+      <div class="panel start-panel">
+        <h1>משחק הזיכרון!</h1>
+        <button id="start-btn" class="primary-btn" type="button">התחל</button>
+      </div>
+    </section>
+
+    <section id="game-screen" class="screen" aria-label="לוח המשחק">
+      <header class="topbar">
+        <div class="status-chip">זוגות שנמצאו: <span id="pairs-found">0</span>/19</div>
+        <button id="restart-btn" class="ghost-btn" type="button">התחל מחדש</button>
+      </header>
+      <div id="game-board" class="game-board" aria-live="polite"></div>
+    </section>
+
+    <section id="win-screen" class="screen" aria-label="מסך ניצחון">
+      <div class="panel win-panel">
+        <h2>ניחצת!</h2>
+        <p>כל הכרטיסים נעלמו.</p>
+        <button id="play-again-btn" class="primary-btn" type="button">שחק שוב</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
