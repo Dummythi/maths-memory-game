@@ -3,8 +3,6 @@ const CARD_LETTERS = [
   'K','L','M','N','O','P','Q','R','S'
 ];
 
-const CARD_BACK = 'card back.png';
-
 const startScreen = document.getElementById('start-screen');
 const gameScreen = document.getElementById('game-screen');
 const winScreen = document.getElementById('win-screen');
@@ -19,21 +17,76 @@ let flippedCards = [];
 let lockBoard = false;
 let matchedPairs = 0;
 
-/* PRELOAD IMAGES */
-function preloadImages() {
-  const images = [];
+let resolvedBackImage = '';
+const resolvedFrontImages = {};
+let assetsReadyPromise = null;
 
-  images.push(CARD_BACK);
+const FOLDER_CANDIDATES = ['', 'cards/', 'assets/'];
+const BACK_NAME_CANDIDATES = ['card back.png', 'card-back.png', 'card_back.png'];
 
-  for (const letter of CARD_LETTERS) {
-    images.push(`${letter}1.png`);
-    images.push(`${letter}2.png`);
+function testImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+
+    img.src = encodeURI(src) + `?v=${Date.now()}`;
+  });
+}
+
+async function findExistingImagePath(candidates) {
+  for (const candidate of candidates) {
+    const ok = await testImage(candidate);
+    if (ok) return candidate;
+  }
+  return null;
+}
+
+async function resolveAssets() {
+  const backCandidates = [];
+
+  for (const folder of FOLDER_CANDIDATES) {
+    for (const backName of BACK_NAME_CANDIDATES) {
+      backCandidates.push(`${folder}${backName}`);
+    }
   }
 
-  images.forEach(src => {
-    const img = new Image();
-    img.src = src;
-  });
+  const foundBack = await findExistingImagePath(backCandidates);
+  if (!foundBack) {
+    throw new Error('Back image not found.');
+  }
+  resolvedBackImage = foundBack;
+
+  for (const letter of CARD_LETTERS) {
+    for (const side of ['1', '2']) {
+      const fileName = `${letter}${side}.png`;
+      const frontCandidates = FOLDER_CANDIDATES.map(folder => `${folder}${fileName}`);
+      const foundFront = await findExistingImagePath(frontCandidates);
+
+      if (!foundFront) {
+        throw new Error(`Front image not found: ${fileName}`);
+      }
+
+      resolvedFrontImages[`${letter}${side}`] = foundFront;
+    }
+  }
+}
+
+function ensureAssetsReady() {
+  if (!assetsReadyPromise) {
+    assetsReadyPromise = resolveAssets();
+  }
+  return assetsReadyPromise;
+}
+
+function shuffle(items) {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 function buildDeck() {
@@ -43,30 +96,19 @@ function buildDeck() {
     cards.push({
       id: `${letter}1`,
       pairId: letter,
-      frontImage: `${letter}1.png`,
+      frontImage: resolvedFrontImages[`${letter}1`],
       alt: `כרטיס ${letter}1`
     });
 
     cards.push({
       id: `${letter}2`,
       pairId: letter,
-      frontImage: `${letter}2.png`,
+      frontImage: resolvedFrontImages[`${letter}2`],
       alt: `כרטיס ${letter}2`
     });
   }
 
   return shuffle(cards);
-}
-
-function shuffle(items) {
-  const copy = [...items];
-
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-
-  return copy;
 }
 
 function showScreen(screen) {
@@ -85,31 +127,29 @@ function resetState() {
 
 function createCardElement(cardData) {
   const card = document.createElement('button');
-
   card.type = 'button';
   card.className = 'card';
   card.dataset.id = cardData.id;
   card.dataset.pairId = cardData.pairId;
+  card.setAttribute('aria-label', `קלף זיכרון ${cardData.id}`);
 
   card.innerHTML = `
     <div class="card-inner">
       <div class="card-face card-back">
-        <img src="${CARD_BACK}" alt="גב הכרטיס" draggable="false">
+        <img src="${encodeURI(resolvedBackImage)}" alt="גב הכרטיס" draggable="false" />
       </div>
       <div class="card-face card-front">
-        <img src="${cardData.frontImage}" alt="${cardData.alt}" draggable="false">
+        <img src="${encodeURI(cardData.frontImage)}" alt="${cardData.alt}" draggable="false" />
       </div>
     </div>
   `;
 
   card.addEventListener('click', () => onCardClick(card));
-
   return card;
 }
 
 function renderBoard() {
   gameBoard.innerHTML = '';
-
   const fragment = document.createDocumentFragment();
 
   deck.forEach(cardData => {
@@ -117,6 +157,44 @@ function renderBoard() {
   });
 
   gameBoard.appendChild(fragment);
+}
+
+function flipCard(card) {
+  card.classList.add('flipped');
+}
+
+function unflipCard(card) {
+  card.classList.remove('flipped');
+}
+
+function handleMatch(firstCard, secondCard) {
+  firstCard.classList.add('matched');
+  secondCard.classList.add('matched');
+  firstCard.disabled = true;
+  secondCard.disabled = true;
+
+  matchedPairs += 1;
+  pairsFoundText.textContent = String(matchedPairs);
+
+  window.setTimeout(() => {
+    firstCard.style.visibility = 'hidden';
+    secondCard.style.visibility = 'hidden';
+    flippedCards = [];
+    lockBoard = false;
+
+    if (matchedPairs === CARD_LETTERS.length) {
+      window.setTimeout(() => showScreen(winScreen), 250);
+    }
+  }, 500);
+}
+
+function handleMismatch(firstCard, secondCard) {
+  window.setTimeout(() => {
+    unflipCard(firstCard);
+    unflipCard(secondCard);
+    flippedCards = [];
+    lockBoard = false;
+  }, 950);
 }
 
 function onCardClick(card) {
@@ -132,9 +210,7 @@ function onCardClick(card) {
   lockBoard = true;
 
   const [firstCard, secondCard] = flippedCards;
-
-  const isMatch =
-    firstCard.dataset.pairId === secondCard.dataset.pairId;
+  const isMatch = firstCard.dataset.pairId === secondCard.dataset.pairId;
 
   if (isMatch) {
     handleMatch(firstCard, secondCard);
@@ -143,60 +219,29 @@ function onCardClick(card) {
   }
 }
 
-function flipCard(card) {
-  card.classList.add('flipped');
-}
+async function startGame() {
+  startBtn.disabled = true;
+  restartBtn.disabled = true;
+  playAgainBtn.disabled = true;
 
-function unflipCard(card) {
-  card.classList.remove('flipped');
-}
-
-function handleMatch(firstCard, secondCard) {
-  firstCard.classList.add('matched');
-  secondCard.classList.add('matched');
-
-  firstCard.disabled = true;
-  secondCard.disabled = true;
-
-  matchedPairs += 1;
-  pairsFoundText.textContent = String(matchedPairs);
-
-  setTimeout(() => {
-    firstCard.style.visibility = 'hidden';
-    secondCard.style.visibility = 'hidden';
-
-    flippedCards = [];
-    lockBoard = false;
-
-    if (matchedPairs === CARD_LETTERS.length) {
-      setTimeout(() => showScreen(winScreen), 300);
-    }
-
-  }, 500);
-}
-
-function handleMismatch(firstCard, secondCard) {
-  setTimeout(() => {
-
-    unflipCard(firstCard);
-    unflipCard(secondCard);
-
-    flippedCards = [];
-    lockBoard = false;
-
-  }, 900);
-}
-
-function startGame() {
-  resetState();
-  renderBoard();
-  showScreen(gameScreen);
+  try {
+    await ensureAssetsReady();
+    resetState();
+    renderBoard();
+    showScreen(gameScreen);
+  } catch (error) {
+    console.error(error);
+    alert('יש בעיה בטעינת התמונות. בדקי שכל הקבצים הועלו ל-GitHub.');
+  } finally {
+    startBtn.disabled = false;
+    restartBtn.disabled = false;
+    playAgainBtn.disabled = false;
+  }
 }
 
 startBtn.addEventListener('click', startGame);
 restartBtn.addEventListener('click', startGame);
 playAgainBtn.addEventListener('click', startGame);
 
-preloadImages();
-
 showScreen(startScreen);
+ensureAssetsReady().catch(console.error);
