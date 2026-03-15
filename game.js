@@ -3,7 +3,7 @@ const CARD_LETTERS = [
   'K','L','M','N','O','P','Q','R','S'
 ];
 
-const CARD_BACK = 'cards/card back.png';
+const CARD_BACK = './cards/card back.png';
 
 const startScreen = document.getElementById('start-screen');
 const gameScreen = document.getElementById('game-screen');
@@ -21,43 +21,37 @@ let matchedPairs = 0;
 
 function preloadImages() {
   const sources = [CARD_BACK];
-
   for (const letter of CARD_LETTERS) {
-    sources.push(`cards/${letter}1.png`);
-    sources.push(`cards/${letter}2.png`);
+    sources.push(`./cards/${letter}1.png`);
+    sources.push(`./cards/${letter}2.png`);
   }
 
   return Promise.all(
-    sources.map((src) => {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(src);
-        img.onerror = () => reject(new Error(`Failed to load ${src}`));
-        img.src = src;
-      });
-    })
+    sources.map(src => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(src);
+      img.onerror = () => reject(new Error(`Failed to load ${src}`));
+      img.src = src;
+    }))
   );
 }
 
 function buildDeck() {
   const cards = [];
-
   for (const letter of CARD_LETTERS) {
     cards.push({
       id: `${letter}1`,
       pairId: letter,
-      frontImage: `cards/${letter}1.png`,
+      frontImage: `./cards/${letter}1.png`,
       alt: `כרטיס ${letter}1`
     });
-
     cards.push({
       id: `${letter}2`,
       pairId: letter,
-      frontImage: `cards/${letter}2.png`,
+      frontImage: `./cards/${letter}2.png`,
       alt: `כרטיס ${letter}2`
     });
   }
-
   return shuffle(cards);
 }
 
@@ -185,7 +179,7 @@ async function startGame() {
     showScreen(gameScreen);
   } catch (error) {
     console.error(error);
-    alert('יש בעיה בטעינת התמונות. בדקי שכל הקבצים נמצאים בתוך התיקייה cards ב-GitHub.');
+    alert('יש בעיה בטעינת התמונות. בדקי שכל הקבצים נמצאים בתוך cards.');
   } finally {
     startBtn.disabled = false;
     restartBtn.disabled = false;
