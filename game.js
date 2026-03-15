@@ -21,20 +21,15 @@ let resolvedBackImage = '';
 const resolvedFrontImages = {};
 let assetsReadyPromise = null;
 
-// ── All back-card filename variants to try ──────────────────────────────────
 const BACK_CANDIDATES = [
-  'cards/card back.png',
   'cards/card-back.png',
+  'cards/card back.png',
   'cards/card_back.png',
   'cards/cardback.png',
-  'cards/Card Back.png',
   'cards/Card-Back.png',
-  'cards/CardBack.png',
   'cards/back.png',
-  'cards/Back.png',
 ];
 
-// ── Test whether an image URL actually loads ────────────────────────────────
 function testImage(src) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -51,7 +46,6 @@ async function findExistingImagePath(candidates) {
   return null;
 }
 
-// ── Show an error banner inside the start panel ─────────────────────────────
 function showError(msg) {
   let banner = document.getElementById('error-banner');
   if (!banner) {
@@ -76,20 +70,16 @@ function showError(msg) {
   banner.textContent = msg;
 }
 
-// ── Resolve all image paths once ────────────────────────────────────────────
 async function resolveAssets() {
-  // Back-of-card
   const foundBack = await findExistingImagePath(BACK_CANDIDATES);
   if (!foundBack) {
     throw new Error(
       'לא נמצאה תמונת גב הכרטיס.\n' +
-      'ודאי שהקובץ נמצא בתיקיית cards/ ב-GitHub.\n' +
       'שמות שנבדקו:\n' + BACK_CANDIDATES.join('\n')
     );
   }
   resolvedBackImage = foundBack;
 
-  // Front images  A1.png ... S2.png  (also tries lowercase)
   for (const letter of CARD_LETTERS) {
     for (const side of ['1', '2']) {
       const candidates = [
@@ -100,13 +90,26 @@ async function resolveAssets() {
       if (!found) {
         throw new Error(
           `לא נמצאה תמונה: ${letter}${side}.png\n` +
-          'ודאי שהקובץ קיים בתיקיית cards/ ב-GitHub\n' +
-          'ושמו בדיוק ' + `${letter}${side}.png` + ' (אותיות גדולות/קטנות חשובות!)'
+          'ודאי שהקובץ קיים בתיקיית cards/ ושמו בדיוק ' +
+          `${letter}${side}.png (אותיות גדולות/קטנות חשובות!)`
         );
       }
       resolvedFrontImages[`${letter}${side}`] = found;
     }
   }
+
+  preloadAllImages();
+}
+
+function preloadAllImages() {
+  const urls = [
+    resolvedBackImage,
+    ...Object.values(resolvedFrontImages),
+  ];
+  urls.forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
 }
 
 function ensureAssetsReady() {
@@ -116,7 +119,6 @@ function ensureAssetsReady() {
   return assetsReadyPromise;
 }
 
-// ── Game logic ───────────────────────────────────────────────────────────────
 function shuffle(items) {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {
