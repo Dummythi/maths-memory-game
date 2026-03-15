@@ -14,6 +14,7 @@ const playAgainBtn = document.getElementById('play-again-btn');
 
 let deck = [];
 let flippedCards = [];
+let pendingFlipBack = [];   // cards waiting to be flipped back on next click
 let lockBoard = false;
 let matchedPairs = 0;
 
@@ -22,11 +23,15 @@ const resolvedFrontImages = {};
 let assetsReadyPromise = null;
 
 const BACK_CANDIDATES = [
+  'cards/card-back.webp',
   'cards/card-back.png',
+  'cards/card back.webp',
   'cards/card back.png',
+  'cards/card_back.webp',
   'cards/card_back.png',
+  'cards/cardback.webp',
   'cards/cardback.png',
-  'cards/Card-Back.png',
+  'cards/back.webp',
   'cards/back.png',
 ];
 
@@ -44,6 +49,14 @@ async function findExistingImagePath(candidates) {
     if (await testImage(candidate)) return candidate;
   }
   return null;
+}
+
+function preloadAllImages() {
+  const urls = [resolvedBackImage, ...Object.values(resolvedFrontImages)];
+  urls.forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
 }
 
 function showError(msg) {
@@ -83,7 +96,9 @@ async function resolveAssets() {
   for (const letter of CARD_LETTERS) {
     for (const side of ['1', '2']) {
       const candidates = [
+        `cards/${letter}${side}.webp`,
         `cards/${letter}${side}.png`,
+        `cards/${letter.toLowerCase()}${side}.webp`,
         `cards/${letter.toLowerCase()}${side}.png`,
       ];
       const found = await findExistingImagePath(candidates);
@@ -99,17 +114,6 @@ async function resolveAssets() {
   }
 
   preloadAllImages();
-}
-
-function preloadAllImages() {
-  const urls = [
-    resolvedBackImage,
-    ...Object.values(resolvedFrontImages),
-  ];
-  urls.forEach(src => {
-    const img = new Image();
-    img.src = src;
-  });
 }
 
 function ensureAssetsReady() {
@@ -146,6 +150,7 @@ function showScreen(screen) {
 function resetState() {
   deck = buildDeck();
   flippedCards = [];
+  pendingFlipBack = [];
   lockBoard = false;
   matchedPairs = 0;
   pairsFoundText.textContent = '0';
@@ -198,21 +203,30 @@ function handleMatch(firstCard, secondCard) {
 }
 
 function handleMismatch(firstCard, secondCard) {
-  setTimeout(() => {
-    unflipCard(firstCard);
-    unflipCard(secondCard);
-    flippedCards = [];
-    lockBoard = false;
-  }, 950);
+  // Leave both cards face-up; they'll flip back when the next card is clicked
+  lockBoard = false;
+  flippedCards = [];
+  pendingFlipBack = [firstCard, secondCard];
 }
 
 function onCardClick(card) {
   if (lockBoard) return;
-  if (card.classList.contains('flipped')) return;
   if (card.classList.contains('matched')) return;
+
+  // If two unmatched cards are still showing, flip them back first
+  if (pendingFlipBack.length) {
+    pendingFlipBack.forEach(unflipCard);
+    pendingFlipBack = [];
+    // If the player clicked one of the two showing cards, just close them and stop
+    if (pendingFlipBack.includes(card)) return;
+  }
+
+  if (card.classList.contains('flipped')) return;
+
   flipCard(card);
   flippedCards.push(card);
   if (flippedCards.length < 2) return;
+
   lockBoard = true;
   const [first, second] = flippedCards;
   first.dataset.pairId === second.dataset.pairId
